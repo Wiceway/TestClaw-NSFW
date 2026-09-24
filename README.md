@@ -47,17 +47,28 @@
 
 ## Установка
 
-**Скачайте репозиторий и запустите установщик:**
+Скопируйте **одну** строку для своей ОС — вставите в терминал, дальше всё само.
+Установщик спросит ваш DeepSeek-ключ.
+
+### Linux / macOS
 
 ```bash
-git clone https://github.com/Wiceway/TestClaw-NSFW TestClaw
-cd TestClaw
+git clone https://github.com/Wiceway/TestClaw-NSFW ~/TestClaw && cd ~/TestClaw && chmod +x install.sh && ./install.sh
 ```
 
-| ОС | Команда |
-|---|---|
-| Linux / macOS | `./install.sh` |
-| Windows | `install.bat` |
+### Windows (PowerShell)
+
+```powershell
+git clone https://github.com/Wiceway/TestClaw-NSFW "$env:USERPROFILE\TestClaw"; cd "$env:USERPROFILE\TestClaw"; .\install.bat
+```
+
+### Windows (CMD)
+
+```cmd
+git clone https://github.com/Wiceway/TestClaw-NSFW %USERPROFILE%\TestClaw && cd %USERPROFILE%\TestClaw && install.bat
+```
+
+---
 
 Установщик:
 1. определяет ОС и архитектуру;
@@ -69,12 +80,25 @@ cd TestClaw
 
 ### Варианты установки
 
-| Что нужно | Команда |
+Добавьте флаг к той же команде:
+
+| Что нужно | Флаг |
 |---|---|
-| Всё в одной папке (`./runtime`) | `install.sh --portable` / `install.bat --portable` |
-| Свой каталог | `python3 setup.py --home /opt/tc` |
-| Без службы | `install.sh --no-service` |
-| Без вопросов (скрипт) | `python3 setup.py --key "$DEEPSEEK_API_KEY"` |
+| Всё в одной папке (`./runtime`, легко удалить) | `--portable` |
+| Свой каталог | `--home /opt/tc` |
+| Без системной службы | `--no-service` |
+
+Пример — всё в одной папке и без службы:
+
+```bash
+./install.sh --portable --no-service
+```
+
+### Установка без вопросов (для скриптов)
+
+```bash
+./install.sh --key "$DEEPSEEK_API_KEY"
+```
 
 ---
 
