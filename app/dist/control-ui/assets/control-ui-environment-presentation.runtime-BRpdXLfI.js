@@ -1,0 +1,1 @@
+import{Bo as e,Ho as t,Vo as n,zo as r}from"./control-ui-boot-shared-CCYBAAP9.js";e();export{r as applyControlUiPresentation,n as invalidateControlUiFaviconPalette,t as syncControlUiFavicon};

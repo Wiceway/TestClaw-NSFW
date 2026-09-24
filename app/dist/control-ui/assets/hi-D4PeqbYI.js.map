@@ -1,0 +1,1 @@
+{"version":3,"file":"hi-D4PeqbYI.js","names":[],"sources":["../../../ui/src/i18n/locales/hi.ts"],"sourcesContent":["export { default as hi } from \"virtual:testclaw-control-ui-locale/hi\";\n"],"mappings":""}

@@ -1,0 +1,343 @@
+import { o as normalizeWindowsPathPreservingCase } from "./path-guards-D465IUx2.js";
+import { i as resolveGlobalSingleton } from "./global-singleton-DmdlcXls.js";
+import { i as executeWithCachedStatement, t as clearNodeSqliteKyselyCacheForDatabase } from "./kysely-sync-cache-state-C8TndyjF.js";
+import { t as isPromiseLike } from "./promise-like-D7-l5Fsp.js";
+import { c as sqliteErrorCode, i as isSqliteLockError, l as sqliteExtendedResultCode, u as sqlitePrimaryResultCode } from "./sqlite-error-diagnostics-E0F_10pq.js";
+import { t as createSubsystemLogger } from "./subsystem-B0s_EQTq.js";
+import { n as discardSqliteTransactionState } from "./sqlite-post-commit-Cresg45I.js";
+import path from "node:path";
+import { isMainThread, threadId } from "node:worker_threads";
+import "node:timers/promises";
+//#region src/infra/sqlite-busy-timeout.ts
+const lockFailureReportingByDatabase = /* @__PURE__ */ new WeakMap();
+function normalizeSqliteNonNegativeInteger(value, label) {
+	if (!Number.isInteger(value) || value < 0) throw new Error(`${label} must be a non-negative integer`);
+	return value;
+}
+function readSqliteBusyTimeout(database) {
+	const row = database.prepare("PRAGMA busy_timeout").get();
+	const value = row?.busy_timeout ?? row?.timeout;
+	return typeof value === "bigint" ? Number(value) : Number(value ?? 0);
+}
+function setSqliteBusyTimeout(database, busyTimeoutMs) {
+	const normalizedTimeoutMs = normalizeSqliteNonNegativeInteger(busyTimeoutMs, "busyTimeoutMs");
+	database.exec(`PRAGMA busy_timeout = ${normalizedTimeoutMs}`);
+}
+function shouldReportSqliteLockFailure(database) {
+	return lockFailureReportingByDatabase.get(database) !== "suppress";
+}
+/** Run with a temporary busy policy; restore early when write admission finishes. */
+function runWithSqliteBusyTimeout(database, busyTimeoutMs, operation, options = {}) {
+	const normalizedTimeoutMs = normalizeSqliteNonNegativeInteger(busyTimeoutMs, "busyTimeoutMs");
+	const previousBusyTimeoutMs = readSqliteBusyTimeout(database);
+	const previousLockFailureReporting = lockFailureReportingByDatabase.get(database);
+	if (options.lockFailureReporting) lockFailureReportingByDatabase.set(database, options.lockFailureReporting);
+	if (previousBusyTimeoutMs !== normalizedTimeoutMs) setSqliteBusyTimeout(database, normalizedTimeoutMs);
+	const restore = () => {
+		if (database.isOpen && previousBusyTimeoutMs !== normalizedTimeoutMs) setSqliteBusyTimeout(database, previousBusyTimeoutMs);
+		if (previousLockFailureReporting) lockFailureReportingByDatabase.set(database, previousLockFailureReporting);
+		else lockFailureReportingByDatabase.delete(database);
+	};
+	try {
+		return operation(restore);
+	} finally {
+		restore();
+	}
+}
+//#endregion
+//#region src/infra/sqlite-transaction.ts
+const DEFAULT_SLOW_BUSY_WAIT_MS = 1e3;
+const DEFAULT_SLOW_TRANSACTION_HOLD_MS = 1e3;
+const abortedTransactionSymbol = Symbol.for("testclaw.sqliteAbortedTransaction");
+function assertTransactionUsable(db) {
+	const aborted = db[abortedTransactionSymbol];
+	if (aborted) throw aborted.error;
+}
+const transactionLog = createSubsystemLogger("sqlite/transaction");
+const writeAdmissionServices = resolveGlobalSingleton(Symbol.for("testclaw.sqliteWriteAdmissionServices"), () => /* @__PURE__ */ new Map());
+const writeAdmissionLocations = /* @__PURE__ */ new WeakMap();
+function writeAdmissionLocation(database) {
+	const cached = writeAdmissionLocations.get(database);
+	if (cached !== void 0) return cached;
+	const location = database.location();
+	const canonical = location === null ? null : normalizeWriteAdmissionLocation(location);
+	writeAdmissionLocations.set(database, canonical);
+	return canonical;
+}
+function normalizeWriteAdmissionLocation(location) {
+	const normalized = process.platform === "win32" ? normalizeWindowsPathPreservingCase(location) : location;
+	return process.platform === "win32" && !path.win32.isAbsolute(normalized) ? location : normalized;
+}
+/** Keep worker-owned lock holders serviceable across connections and module graphs. */
+async function withSqliteWriteAdmissionService(database, service, operation) {
+	const location = writeAdmissionLocation(database);
+	if (location === null) throw new Error("SQLite write admission service requires a file-backed database");
+	const release = retainSqliteWriteAdmissionService([location], service);
+	try {
+		return await operation();
+	} finally {
+		release();
+	}
+}
+/** Locations come from the retained native owner; registration grants no write authority. */
+function retainSqliteWriteAdmissionService(nativeLocations, service) {
+	const registrations = [...new Set(nativeLocations.map(normalizeWriteAdmissionLocation))].map((location) => {
+		const services = writeAdmissionServices.get(location) ?? /* @__PURE__ */ new Set();
+		const retained = () => service();
+		services.add(retained);
+		writeAdmissionServices.set(location, services);
+		return {
+			location,
+			services,
+			retained
+		};
+	});
+	return () => {
+		for (const { location, services, retained } of registrations) {
+			services.delete(retained);
+			if (services.size === 0 && writeAdmissionServices.get(location) === services) writeAdmissionServices.delete(location);
+		}
+	};
+}
+/** Native coordinator waits must keep the same worker's current-authority grants serviceable. */
+function sqliteWriteAdmissionServicesForLocation(location) {
+	return writeAdmissionServices.get(normalizeWriteAdmissionLocation(location));
+}
+function execNativeBegin(db, diagnostics) {
+	const startedAt = Date.now();
+	diagnostics.nativeAttempts += 1;
+	try {
+		db.exec("BEGIN IMMEDIATE");
+	} finally {
+		diagnostics.nativeMs += Date.now() - startedAt;
+	}
+}
+function beginImmediateTransaction(db, diagnostics) {
+	const location = writeAdmissionServices.size > 0 ? writeAdmissionLocation(db) : null;
+	const services = location === null ? void 0 : writeAdmissionServices.get(location);
+	if (!services) {
+		execNativeBegin(db, diagnostics);
+		return;
+	}
+	const deadline = performance.now() + readSqliteBusyTimeout(db);
+	while (true) try {
+		runWithSqliteBusyTimeout(db, Math.min(25, Math.max(0, Math.ceil(deadline - performance.now()))), () => execNativeBegin(db, diagnostics));
+		return;
+	} catch (error) {
+		if (!isSqliteLockError(error) || performance.now() >= deadline) throw error;
+		for (const service of services) {
+			const startedAt = Date.now();
+			diagnostics.serviceCalls += 1;
+			try {
+				service();
+			} finally {
+				diagnostics.serviceMs += Date.now() - startedAt;
+			}
+		}
+		if (performance.now() >= deadline) throw error;
+	}
+}
+function assertSyncTransactionResult(value) {
+	if (isPromiseLike(value)) throw new Error("SQLite write transactions must be synchronous; Promise returns are not supported.");
+}
+function slowBusyWaitThresholdMs(options) {
+	if (options?.busyTimeoutMs === void 0 || options.busyTimeoutMs <= 0) return DEFAULT_SLOW_BUSY_WAIT_MS;
+	return Math.min(DEFAULT_SLOW_BUSY_WAIT_MS, options.busyTimeoutMs);
+}
+function slowTransactionHoldThresholdMs(options) {
+	return options?.slowTransactionHoldMs ?? DEFAULT_SLOW_TRANSACTION_HOLD_MS;
+}
+function transactionLogger(options) {
+	return options?.logger ?? transactionLog;
+}
+function logSlowTransactionHold(params) {
+	if (params.elapsedMs < slowTransactionHoldThresholdMs(params.options)) return;
+	transactionLogger(params.options).warn("slow SQLite transaction hold", {
+		async: false,
+		...params.options?.databaseLabel ? { database: params.options.databaseLabel } : {},
+		elapsedMs: params.elapsedMs,
+		isMainThread,
+		...params.options?.operationLabel ? { operation: params.options.operationLabel } : {},
+		pid: process.pid,
+		threadId,
+		thresholdMs: slowTransactionHoldThresholdMs(params.options)
+	});
+}
+/** The lifecycle lock precedes BEGIN, so transaction hold diagnostics cannot see this wait. */
+function logSlowSqliteCoordinatorWait(elapsedMs, options) {
+	if (!isMainThread || elapsedMs <= 100) return;
+	transactionLogger(void 0).warn("slow SQLite coordinator lock wait", {
+		async: false,
+		database: options.databaseLabel,
+		elapsedMs,
+		isMainThread,
+		operation: options.operationLabel,
+		pid: process.pid,
+		threadId,
+		thresholdMs: 100
+	});
+}
+function logSlowTransactionStep(params) {
+	if (params.elapsedMs < slowBusyWaitThresholdMs(params.options)) return;
+	transactionLogger(params.options).warn("slow SQLite transaction step", {
+		async: false,
+		...params.options?.busyTimeoutMs !== void 0 ? { busyTimeoutMs: params.options.busyTimeoutMs } : {},
+		...params.options?.databaseLabel ? { database: params.options.databaseLabel } : {},
+		elapsedMs: params.elapsedMs,
+		isMainThread,
+		...params.options?.operationLabel ? { operation: params.options.operationLabel } : {},
+		pid: process.pid,
+		step: params.step,
+		threadId,
+		...beginAdmissionLogFields(params.beginAdmission)
+	});
+}
+function beginAdmissionLogFields(diagnostics) {
+	return diagnostics ? { beginAdmission: {
+		nativeAttempts: diagnostics.nativeAttempts,
+		nativeMs: diagnostics.nativeMs,
+		serviceCalls: diagnostics.serviceCalls,
+		serviceMs: diagnostics.serviceMs
+	} } : {};
+}
+function execTimedTransactionStep(params) {
+	const startedAt = Date.now();
+	const beginAdmission = params.sql === "BEGIN IMMEDIATE" ? {
+		nativeAttempts: 0,
+		nativeMs: 0,
+		serviceCalls: 0,
+		serviceMs: 0
+	} : void 0;
+	try {
+		if (beginAdmission) beginImmediateTransaction(params.db, beginAdmission);
+		else params.db.exec(params.sql);
+		const elapsedMs = Date.now() - startedAt;
+		logSlowTransactionStep({
+			beginAdmission,
+			elapsedMs,
+			options: params.options,
+			step: params.step
+		});
+		return elapsedMs;
+	} catch (error) {
+		const elapsedMs = Date.now() - startedAt;
+		if (isSqliteLockError(error) && shouldReportSqliteLockFailure(params.db)) {
+			const sqliteErrcode = sqliteExtendedResultCode(error);
+			const sqlitePrimaryCode = sqlitePrimaryResultCode(error);
+			transactionLogger(params.options).warn("SQLite transaction lock wait failed", {
+				async: false,
+				...params.options?.busyTimeoutMs !== void 0 ? { busyTimeoutMs: params.options.busyTimeoutMs } : {},
+				...params.options?.databaseLabel ? { database: params.options.databaseLabel } : {},
+				code: sqliteErrorCode(error),
+				elapsedMs,
+				failureKind: "lock-contention",
+				isMainThread,
+				...params.options?.operationLabel ? { operation: params.options.operationLabel } : {},
+				pid: process.pid,
+				...sqliteErrcode !== void 0 ? { sqliteErrcode } : {},
+				...sqlitePrimaryCode !== void 0 ? { sqlitePrimaryCode } : {},
+				step: params.step,
+				threadId,
+				...beginAdmissionLogFields(beginAdmission)
+			});
+		}
+		throw error;
+	}
+}
+function beginTransaction(db, options, mode) {
+	execTimedTransactionStep({
+		db,
+		options,
+		sql: mode === "immediate" ? "BEGIN IMMEDIATE" : "BEGIN",
+		step: "begin"
+	});
+}
+function commitImmediateTransaction(db, options) {
+	execTimedTransactionStep({
+		db,
+		options,
+		sql: "COMMIT",
+		step: "commit"
+	});
+}
+function discardUnsafeConnection(db, error) {
+	db[abortedTransactionSymbol] ??= { error };
+	discardSqliteTransactionState(db, error);
+	clearNodeSqliteKyselyCacheForDatabase(db);
+	try {
+		db.close();
+	} catch {}
+}
+function abortImmediateTransaction(db, error) {
+	if (db[abortedTransactionSymbol]) return;
+	try {
+		db.exec("ROLLBACK");
+	} catch {
+		discardUnsafeConnection(db, error);
+	}
+}
+function runSqliteTransactionSync(db, operation, mode, options) {
+	assertTransactionUsable(db);
+	if (db.isTransaction) {
+		db.exec("SAVEPOINT testclaw_tx_nested");
+		try {
+			const result = operation();
+			assertSyncTransactionResult(result);
+			assertTransactionUsable(db);
+			db.exec("RELEASE SAVEPOINT testclaw_tx_nested");
+			return result;
+		} catch (error) {
+			const failure = db[abortedTransactionSymbol];
+			if (failure) throw failure.error;
+			try {
+				db.exec("ROLLBACK TO SAVEPOINT testclaw_tx_nested");
+				db.exec("RELEASE SAVEPOINT testclaw_tx_nested");
+			} catch {
+				discardUnsafeConnection(db, error);
+			}
+			throw error;
+		}
+	}
+	beginTransaction(db, options, mode);
+	const transactionStartedAt = Date.now();
+	try {
+		const result = operation();
+		assertSyncTransactionResult(result);
+		assertTransactionUsable(db);
+		if (options?.withCommit) assertSyncTransactionResult(options.withCommit(() => commitImmediateTransaction(db, options)));
+		else commitImmediateTransaction(db, options);
+		return result;
+	} catch (error) {
+		abortImmediateTransaction(db, error);
+		assertTransactionUsable(db);
+		throw error;
+	} finally {
+		try {
+			logSlowTransactionHold({
+				elapsedMs: Date.now() - transactionStartedAt,
+				options
+			});
+		} catch {}
+	}
+}
+/** Run synchronous reads against one deferred SQLite snapshot. */
+function runSqliteDeferredTransactionSync(db, operation, options) {
+	return runSqliteTransactionSync(db, operation, "deferred", options);
+}
+/** Pin an implicit read snapshot without requiring transaction-control authorization. */
+function runSqlitePinnedReadSnapshotSync(db, operation) {
+	return executeWithCachedStatement(db, "PRAGMA schema_version", [], (statement) => {
+		const snapshot = statement.iterate();
+		try {
+			if (snapshot.next().done) throw new Error("SQLite schema version query returned no row");
+			return operation();
+		} finally {
+			snapshot.return?.();
+		}
+	});
+}
+function runSqliteImmediateTransactionSync(db, operation, options) {
+	return runSqliteTransactionSync(db, operation, "immediate", options);
+}
+//#endregion
+export { runSqliteImmediateTransactionSync as a, withSqliteWriteAdmissionService as c, runWithSqliteBusyTimeout as d, setSqliteBusyTimeout as f, runSqliteDeferredTransactionSync as i, normalizeSqliteNonNegativeInteger as l, logSlowSqliteCoordinatorWait as n, runSqlitePinnedReadSnapshotSync as o, retainSqliteWriteAdmissionService as r, sqliteWriteAdmissionServicesForLocation as s, assertTransactionUsable as t, readSqliteBusyTimeout as u };

@@ -1,0 +1,50 @@
+import { t as formatErrorMessage } from "./errors-cp9Var1Z.js";
+import { n as inspectUpdateRunAbandonment, o as staleUpdateRunGuidance } from "./update-run-activity-Bjglr3ln.js";
+import { c as LEGACY_UPDATE_RUN_EXPIRED_REASON, r as isAcknowledgedAbandonedUpdateRun, s as LEGACY_UPDATE_RUN_ADVISORY } from "./update-run-record-D98I90cl.js";
+import { c as reconcileAbandonedUpdateRuns } from "./update-run-ledger-DLD5Q47c.js";
+import { s as listUpdateRuns, t as findActiveUpdateRun } from "./update-run-reader-CA3WJ8vB.js";
+//#region src/infra/update-run-status.ts
+/** Status heals the bounded legacy defect while other recovery keeps its existing owner. */
+function readUpdateRunStatus() {
+	let runReconciliationError;
+	try {
+		reconcileAbandonedUpdateRuns({ legacyOnly: true });
+	} catch (error) {
+		runReconciliationError = formatErrorMessage(error);
+	}
+	try {
+		const activeRun = findActiveUpdateRun();
+		const lastRun = listUpdateRuns({
+			limit: 1,
+			excludeReason: "dry-run"
+		})[0];
+		const abandonment = activeRun ? inspectUpdateRunAbandonment(activeRun) : void 0;
+		const staleGuidance = activeRun ? staleUpdateRunGuidance(activeRun) : void 0;
+		const expired = listUpdateRuns({
+			limit: 1,
+			reason: LEGACY_UPDATE_RUN_EXPIRED_REASON
+		})[0];
+		return {
+			...runReconciliationError ? { runReconciliationError } : {},
+			...activeRun ? { activeRun } : {},
+			...lastRun ? { lastRun } : {},
+			...staleGuidance && activeRun ? { staleRun: {
+				runId: activeRun.runId,
+				guidance: staleGuidance
+			} } : {},
+			...abandonment && abandonment !== "legacy-driver-expired" && activeRun ? { abandonedRun: {
+				runId: activeRun.runId,
+				rule: abandonment
+			} } : {},
+			...expired && !isAcknowledgedAbandonedUpdateRun(expired) ? { advisories: [{
+				runId: expired.runId,
+				reason: LEGACY_UPDATE_RUN_EXPIRED_REASON,
+				message: expired.runId === (activeRun ?? lastRun)?.runId ? LEGACY_UPDATE_RUN_ADVISORY : "Historical update: a 2026.9.2-era update never progressed past admission and was treated as abandoned after 24 h."
+			}] } : {}
+		};
+	} catch (error) {
+		return { runStatusError: formatErrorMessage(error) };
+	}
+}
+//#endregion
+export { readUpdateRunStatus as t };

@@ -1,0 +1,72 @@
+import { o as resolveAssistantStateSqlitePath } from "./testclaw-state-db.paths-Bcv76PAw.mjs";
+import { n as cloneEnvWithPlatformSemantics } from "./config-env-vars-DV4936r7.mjs";
+import { t as captureAssistantStateWorkerContext } from "./testclaw-state-worker-context-D-9Un3Oe.mjs";
+import { n as HostedCatalogSignedFeedMonotonicityError } from "./official-external-plugin-catalog-source-D8QR4Q8K.mjs";
+import { existsSync } from "node:fs";
+//#region src/plugins/official-external-plugin-catalog-snapshot-store.ts
+/** Persists hosted official plugin catalog snapshots through the shared-state worker. */
+function resolveDatabaseOptions(options) {
+	const env = cloneEnvWithPlatformSemantics(options.env ?? process.env);
+	if (options.stateDir) env.TESTCLAW_STATE_DIR = options.stateDir;
+	return {
+		env,
+		path: options.stateDatabasePath || resolveAssistantStateSqlitePath(env)
+	};
+}
+function captureSnapshot(snapshot) {
+	const { metadata, trust, monotonic } = snapshot;
+	return {
+		body: snapshot.body,
+		metadata: {
+			url: metadata.url,
+			status: metadata.status,
+			etag: metadata.etag,
+			lastModified: metadata.lastModified,
+			checksum: metadata.checksum
+		},
+		savedAt: snapshot.savedAt,
+		...trust ? { trust: {
+			mode: trust.mode,
+			signedBy: trust.signedBy,
+			signatureCount: trust.signatureCount,
+			threshold: trust.threshold,
+			verifiedAt: trust.verifiedAt
+		} } : {},
+		...monotonic ? { monotonic: {
+			mode: monotonic.mode,
+			sequence: monotonic.sequence,
+			generatedAt: monotonic.generatedAt
+		} } : {}
+	};
+}
+/** Creates a snapshot store backed by the shared `state/testclaw.sqlite` database. */
+function createSqliteHostedOfficialExternalPluginCatalogSnapshotStore(options = {}) {
+	return {
+		async read(url) {
+			const databaseOptions = resolveDatabaseOptions(options);
+			if (!existsSync(databaseOptions.path)) return null;
+			const context = captureAssistantStateWorkerContext(databaseOptions);
+			const { runAssistantStateWorkerOperation } = await import("./testclaw-state-worker-store-pA5vzL_U.mjs");
+			return await runAssistantStateWorkerOperation(context, (scope) => scope.execute({
+				type: "plugins.catalogSnapshot.read",
+				input: { url }
+			}), { existingOnly: true }) ?? null;
+		},
+		async write(snapshot) {
+			const now = Date.now();
+			const prepared = captureSnapshot(snapshot);
+			const context = captureAssistantStateWorkerContext(resolveDatabaseOptions(options));
+			const { runAssistantStateWorkerOperation } = await import("./testclaw-state-worker-store-pA5vzL_U.mjs");
+			const result = await runAssistantStateWorkerOperation(context, (scope) => scope.execute({
+				type: "plugins.catalogSnapshot.write",
+				input: {
+					snapshot: prepared,
+					now
+				}
+			}));
+			if (!result.ok) throw new HostedCatalogSignedFeedMonotonicityError(result.message);
+		}
+	};
+}
+//#endregion
+export { createSqliteHostedOfficialExternalPluginCatalogSnapshotStore };

@@ -1,0 +1,2 @@
+import { a as rewritePnpmVersionedAssistantEntryPath, i as resolveAssistantPackageRootsSync, n as resolveAssistantPackageRoot, r as resolveAssistantPackageRootSync, t as resolveAssistantInstallationRootSync } from "./testclaw-root-CayS889k.mjs";
+export { resolveAssistantInstallationRootSync, resolveAssistantPackageRoot, resolveAssistantPackageRootSync, resolveAssistantPackageRootsSync, rewritePnpmVersionedAssistantEntryPath };

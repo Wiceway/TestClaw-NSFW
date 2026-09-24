@@ -1,0 +1,1 @@
+{"version":3,"file":"tr-Cn4w_TtF.js","names":[],"sources":["../../../ui/src/i18n/locales/tr.ts"],"sourcesContent":["export { default as tr } from \"virtual:testclaw-control-ui-locale/tr\";\n"],"mappings":""}

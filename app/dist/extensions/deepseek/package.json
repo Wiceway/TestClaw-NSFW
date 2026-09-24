@@ -1,0 +1,31 @@
+{
+  "name": "@testclaw/deepseek-provider",
+  "version": "2026.9.5",
+  "description": "Testclaw DeepSeek provider plugin.",
+  "type": "module",
+  "devDependencies": {
+    "@testclaw/plugin-sdk": "workspace:*"
+  },
+  "testclaw": {
+    "extensions": [
+      "./index.js"
+    ],
+    "install": {
+      "clawhubSpec": "clawhub:@testclaw/deepseek-provider",
+      "npmSpec": "@testclaw/deepseek-provider",
+      "defaultChoice": "npm",
+      "minHostVersion": ">=2026.6.8"
+    },
+    "compat": {
+      "pluginApi": ">=2026.9.5"
+    },
+    "build": {
+      "testclawVersion": "2026.9.5",
+      "bundledDist": false
+    },
+    "release": {
+      "publishToClawHub": true,
+      "publishToNpm": true
+    }
+  }
+}

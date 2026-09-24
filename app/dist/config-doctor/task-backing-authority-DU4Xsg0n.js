@@ -1,0 +1,3 @@
+import { h as createSubagentTaskBackingDetail, y as readTaskBackingInstance } from "./task-registry.store.kernel-Bnd9Ls7p.js";
+import { a as prepareTaskBackingRead, i as hasResidentTaskBacking, n as getManagedTaskBackingInstance, o as resolveManagedTaskBackingDetail, r as hasAuthoritativeTaskBacking, t as createNextAcpTaskBackingDetail } from "./task-backing-authority-Cwc8FxS7.js";
+export { createNextAcpTaskBackingDetail, createSubagentTaskBackingDetail, getManagedTaskBackingInstance, hasAuthoritativeTaskBacking, hasResidentTaskBacking, prepareTaskBackingRead, readTaskBackingInstance, resolveManagedTaskBackingDetail };

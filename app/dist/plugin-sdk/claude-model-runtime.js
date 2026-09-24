@@ -1,0 +1,3 @@
+import { _ as supportsClaudeFastMode, c as resolveClaudeFable5ModelIdentity, g as supportsClaudeAdaptiveThinking, l as resolveClaudeModelIdentity, m as resolveClaudeSonnet5ModelIdentity, p as resolveClaudeOpus5ModelIdentity, s as requiresClaudeMandatoryAdaptiveThinking, u as resolveClaudeMythos5ModelIdentity } from "../anthropic-eZ0F5gNO.mjs";
+import { n as resolveClaudeThinkingProfile } from "../provider-claude-thinking-Bc_XymMM.mjs";
+export { requiresClaudeMandatoryAdaptiveThinking, resolveClaudeFable5ModelIdentity, resolveClaudeModelIdentity, resolveClaudeMythos5ModelIdentity, resolveClaudeOpus5ModelIdentity, resolveClaudeSonnet5ModelIdentity, resolveClaudeThinkingProfile, supportsClaudeAdaptiveThinking, supportsClaudeFastMode };

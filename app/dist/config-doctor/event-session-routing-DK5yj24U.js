@@ -1,0 +1,178 @@
+import { o as normalizeLowercaseStringOrEmpty } from "./string-coerce-CIXf7egm.js";
+import { n as normalizeAgentId } from "./agent-id-C8MGgrNG.js";
+import "./src-D9uQ497Z.js";
+import { t as expectDefined } from "./expect-lbe3Hgrh.js";
+import { c as isRecord } from "./record-coerce-DItp3I4t.js";
+import { n as buildAgentMainSessionKey } from "./session-key-C0UQClgw.js";
+import { T as parseThreadSessionSuffix, k as parseAgentSessionKey, l as resolveEventSessionKey, m as scopedHeartbeatWakeOptions } from "./session-key-AvQIavYt.js";
+import { t as deriveSessionChatTypeFromKey } from "./session-chat-type-shared-BKwSd1kN.js";
+import { o as resolveAgentRoute } from "./resolve-route-BBuGiPPu.js";
+import { n as resolveChannelAccountEntry } from "./account-lookup-CD9t104R.js";
+import "./store-allow-from-19N5OzAU.js";
+//#region src/security/dm-policy-shared.ts
+/**
+* Derive a stable main-DM owner from a single-entry allowlist.
+* Wildcards, multi-owner lists, and non-main DM scopes stay unpinned so callers keep route-specific sessions.
+*/
+function resolvePinnedMainDmOwnerFromAllowlist(params) {
+	if ((params.dmScope ?? "main") !== "main") return null;
+	const rawAllowFrom = Array.isArray(params.allowFrom) ? params.allowFrom : [];
+	if (rawAllowFrom.some((entry) => String(entry).trim() === "*")) return null;
+	const normalizedOwners = Array.from(new Set(rawAllowFrom.map((entry) => params.normalizeEntry(String(entry))).filter((entry) => Boolean(entry))));
+	return normalizedOwners.length === 1 ? expectDefined(normalizedOwners[0], "normalized owners entry at 0") : null;
+}
+//#endregion
+//#region src/infra/event-session-routing.ts
+function readAllowFrom(value) {
+	if (!isRecord(value)) return;
+	const allowFrom = value.allowFrom;
+	return Array.isArray(allowFrom) ? allowFrom : void 0;
+}
+function readDmAllowFrom(value) {
+	if (!isRecord(value)) return;
+	return readAllowFrom(value.dm);
+}
+function readAccountConfig(value) {
+	return isRecord(value) && isRecord(value.config) ? value.config : void 0;
+}
+function normalizeEntry(value) {
+	return normalizeLowercaseStringOrEmpty(value) || void 0;
+}
+/** Parse an agent direct-session key into channel/account/peer routing parts. */
+function parseDirectAgentSessionTarget(sessionKey) {
+	const { baseSessionKey } = parseThreadSessionSuffix(sessionKey);
+	const directSessionKey = baseSessionKey ?? sessionKey;
+	const parsed = parseAgentSessionKey(directSessionKey);
+	if (!parsed || deriveSessionChatTypeFromKey(directSessionKey) !== "direct") return null;
+	const parts = parsed.rest.split(":");
+	const directIndex = parts.findIndex((part) => part === "direct" || part === "dm");
+	if (directIndex < 0 || directIndex > 2 || directIndex >= parts.length - 1) return null;
+	const peerId = normalizeLowercaseStringOrEmpty(parts.slice(directIndex + 1).join(":"));
+	if (!peerId) return null;
+	return {
+		agentId: parsed.agentId,
+		...directIndex >= 1 ? { channel: normalizeLowercaseStringOrEmpty(parts[0]) } : {},
+		...directIndex >= 2 ? { accountId: normalizeLowercaseStringOrEmpty(parts[1]) } : {},
+		peerId
+	};
+}
+/** Resolve the configured DM allowlist that applies to an event session. */
+function resolveEventSessionAllowFrom(params) {
+	const cfg = params.cfg;
+	if (!cfg?.channels) return;
+	const channelKey = normalizeLowercaseStringOrEmpty(params.channel ?? params.target?.channel);
+	if (!channelKey) return;
+	const channelConfig = isRecord(cfg.channels) ? cfg.channels[channelKey] : void 0;
+	if (!isRecord(channelConfig)) return;
+	const accountId = normalizeLowercaseStringOrEmpty(params.accountId ?? params.target?.accountId);
+	const accountConfig = accountId && isRecord(channelConfig.accounts) ? resolveChannelAccountEntry(channelConfig.accounts, accountId, channelKey, (id) => id) : void 0;
+	const accountNestedConfig = readAccountConfig(accountConfig);
+	return readDmAllowFrom(accountConfig) ?? readDmAllowFrom(accountNestedConfig) ?? readAllowFrom(accountConfig) ?? readAllowFrom(accountNestedConfig) ?? readDmAllowFrom(channelConfig) ?? readAllowFrom(channelConfig);
+}
+function shouldPreserveDirectSessionKeyFromRoute(params) {
+	if (!params.cfg || !params.target?.channel) return false;
+	try {
+		const route = resolveAgentRoute({
+			cfg: params.cfg,
+			channel: params.target.channel,
+			accountId: params.target.accountId,
+			peer: {
+				kind: "direct",
+				id: params.target.peerId
+			}
+		});
+		const { baseSessionKey } = parseThreadSessionSuffix(params.sessionKey);
+		const normalizedRouteSessionKey = normalizeLowercaseStringOrEmpty(route.sessionKey);
+		return route.lastRoutePolicy === "session" && (normalizedRouteSessionKey === normalizeLowercaseStringOrEmpty(params.sessionKey) || baseSessionKey !== void 0 && normalizedRouteSessionKey === normalizeLowercaseStringOrEmpty(baseSessionKey));
+	} catch {
+		return false;
+	}
+}
+/** Build the routing policy used by event wakeups and scoped heartbeat options. */
+function resolveEventSessionRoutingPolicy(params) {
+	const target = parseDirectAgentSessionTarget(params.sessionKey);
+	const channel = normalizeLowercaseStringOrEmpty(params.channel ?? target?.channel) || void 0;
+	const accountId = normalizeLowercaseStringOrEmpty(params.accountId ?? target?.accountId) || void 0;
+	const allowFrom = params.allowFrom ?? resolveEventSessionAllowFrom({
+		cfg: params.cfg,
+		target,
+		channel,
+		accountId
+	});
+	return {
+		mainKey: params.cfg?.session?.mainKey,
+		sessionScope: params.cfg?.session?.scope,
+		dmScope: params.dmScope ?? params.cfg?.session?.dmScope,
+		allowFrom,
+		channel,
+		accountId,
+		preserveSessionKey: params.sessionKey ? shouldPreserveDirectSessionKeyFromRoute({
+			cfg: params.cfg,
+			sessionKey: params.sessionKey,
+			target
+		}) : false
+	};
+}
+/** Resolve a direct DM event session to the configured main session when allowed. */
+function resolveMainScopedEventSessionKey(params) {
+	const sessionKey = params.sessionKey.trim();
+	if (!sessionKey || params.policy?.preserveSessionKey === true) return null;
+	const target = parseDirectAgentSessionTarget(sessionKey);
+	if (!target) return null;
+	const resolvedAgentId = normalizeAgentId(params.agentId ?? target.agentId);
+	if (normalizeAgentId(target.agentId) !== resolvedAgentId) return null;
+	const policy = params.policy ?? resolveEventSessionRoutingPolicy({
+		cfg: params.cfg,
+		sessionKey
+	});
+	const allowFrom = Array.from(policy.allowFrom ?? []);
+	const pinnedOwner = resolvePinnedMainDmOwnerFromAllowlist({
+		dmScope: policy.dmScope ?? params.cfg?.session?.dmScope,
+		allowFrom,
+		normalizeEntry
+	});
+	if (!pinnedOwner || normalizeEntry(target.peerId) !== pinnedOwner) return null;
+	if (shouldPreserveDirectSessionKeyFromRoute({
+		cfg: params.cfg,
+		sessionKey,
+		target
+	})) return null;
+	if (policy.sessionScope === "global") return "global";
+	return buildAgentMainSessionKey({
+		agentId: resolvedAgentId,
+		mainKey: policy.mainKey ?? params.cfg?.session?.mainKey
+	});
+}
+/** Apply event routing policy to a raw session key. */
+function resolveEventSessionKeyForPolicy(sessionKey, policy) {
+	const cronScoped = resolveEventSessionKey(sessionKey, policy?.mainKey, policy?.sessionScope);
+	if (cronScoped !== sessionKey) return cronScoped;
+	return resolveMainScopedEventSessionKey({
+		sessionKey,
+		policy
+	}) ?? sessionKey;
+}
+/** Apply event routing policy while preserving wake option typing. */
+function scopedHeartbeatWakeOptionsForPolicy(sessionKey, wakeOptions, policy) {
+	if (resolveEventSessionKey(sessionKey, policy?.mainKey, policy?.sessionScope) !== sessionKey) return scopedHeartbeatWakeOptions(sessionKey, wakeOptions, policy?.mainKey, policy?.sessionScope);
+	const mainScoped = resolveMainScopedEventSessionKey({
+		sessionKey,
+		policy
+	});
+	if (mainScoped) {
+		if (mainScoped === "global") {
+			const agentId = parseAgentSessionKey(sessionKey)?.agentId;
+			return agentId ? {
+				...wakeOptions,
+				agentId
+			} : wakeOptions;
+		}
+		return {
+			...wakeOptions,
+			sessionKey: mainScoped
+		};
+	}
+	return scopedHeartbeatWakeOptions(sessionKey, wakeOptions, policy?.mainKey, policy?.sessionScope);
+}
+//#endregion
+export { scopedHeartbeatWakeOptionsForPolicy as i, resolveEventSessionRoutingPolicy as n, resolveMainScopedEventSessionKey as r, resolveEventSessionKeyForPolicy as t };

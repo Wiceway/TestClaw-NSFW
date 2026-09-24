@@ -1,0 +1,17 @@
+{
+  "name": "@testclaw/linux-node",
+  "version": "2026.9.5",
+  "description": "Testclaw Linux node device capabilities",
+  "type": "module",
+  "dependencies": {
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@testclaw/plugin-sdk": "workspace:*"
+  },
+  "testclaw": {
+    "extensions": [
+      "./index.js"
+    ]
+  }
+}

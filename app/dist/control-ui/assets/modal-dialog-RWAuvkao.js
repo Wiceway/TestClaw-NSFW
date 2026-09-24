@@ -1,0 +1,1 @@
+import"./control-ui-foundation-CGMdhB5v.js";import{Fr as e,Pr as t}from"./control-ui-core-G2U4O6rB.js";e();export{t as AssistantModalDialog};

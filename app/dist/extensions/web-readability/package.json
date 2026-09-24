@@ -1,0 +1,19 @@
+{
+  "name": "@testclaw/web-readability-plugin",
+  "version": "2026.9.5",
+  "private": true,
+  "description": "Testclaw local Readability web extraction plugin",
+  "type": "module",
+  "dependencies": {
+    "@mozilla/readability": "0.6.0",
+    "linkedom": "0.18.13"
+  },
+  "devDependencies": {
+    "@testclaw/plugin-sdk": "workspace:*"
+  },
+  "testclaw": {
+    "extensions": [
+      "./index.js"
+    ]
+  }
+}

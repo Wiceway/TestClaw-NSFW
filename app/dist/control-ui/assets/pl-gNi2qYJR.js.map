@@ -1,0 +1,1 @@
+{"version":3,"file":"pl-gNi2qYJR.js","names":[],"sources":["../../../ui/src/i18n/locales/pl.ts"],"sourcesContent":["export { default as pl } from \"virtual:testclaw-control-ui-locale/pl\";\n"],"mappings":""}

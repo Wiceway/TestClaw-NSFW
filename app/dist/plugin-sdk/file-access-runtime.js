@@ -1,0 +1,15 @@
+import { l as resolvePathPrefixSync, n as assertNoSymlinkParents, p as tempFile, r as assertNoSymlinkParentsSync, s as readFileHandleBounded } from "../fs-safe-advanced-CXTPw96m.mjs";
+import { E as statRegularFileSync, T as statRegularFile, _ as readRegularFileSync, a as canonicalPathFromExistingAncestor, g as readRegularFile, j as writeFileWithinRoot, m as readLocalFileFromRoots, p as readFileWithinRoot, v as readSecureFile, w as root } from "../fs-safe-B1VkXzpu.mjs";
+import { i as isPathStrictlyInside, r as isPathInside } from "../path-guards-0NKGHIHl.mjs";
+import { a as openRootFile } from "../boundary-file-read-u2SCs3-A.mjs";
+import { n as resolvePreferredAssistantTmpDir } from "../tmp-testclaw-dir-DCm0nmdl.mjs";
+import { t as readFileWindowFully } from "../file-read-EjE8avWj.mjs";
+import { a as writeFileWindowFully } from "../file-descriptor--ToewmB_.mjs";
+import { c as sha256File, l as syncDirectory, t as ensureDurableDirectory } from "../directory-durability-C18_733x.mjs";
+import { a as inspectPathPermissions } from "../permissions-BpoR0No3.mjs";
+import { a as safeFileURLToPath, n as basenameFromMediaSource } from "../local-file-access-CpXUFBeT.mjs";
+import { t as readFileRangeAsync } from "../file-range-DRbitcO_.mjs";
+import { t as removePathWithinRoot } from "../fs-safe-remove-fOfd3fWw.mjs";
+import { t as getFileWatchCapacityCode } from "../fs-watch-errors-D0zoLJOB.mjs";
+import { t as fileExists } from "../file-access-runtime-BKC5Ymlf.mjs";
+export { assertNoSymlinkParents, assertNoSymlinkParentsSync, basenameFromMediaSource, canonicalPathFromExistingAncestor, ensureDurableDirectory, fileExists, getFileWatchCapacityCode, inspectPathPermissions, isPathInside, isPathStrictlyInside, openRootFile, readFileHandleBounded, readFileRangeAsync, readFileWindowFully, readFileWithinRoot, readLocalFileFromRoots, readRegularFile, readRegularFileSync, readSecureFile, removePathWithinRoot, resolvePathPrefixSync, resolvePreferredAssistantTmpDir, root, safeFileURLToPath, sha256File, statRegularFile, statRegularFileSync, syncDirectory, tempFile, writeFileWindowFully, writeFileWithinRoot };

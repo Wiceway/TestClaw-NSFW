@@ -1,0 +1,1 @@
+import{n as e,t}from"./catalog-terminal-start-BWWN_ZXP.js";t();export{e as prepareCatalogTerminal};

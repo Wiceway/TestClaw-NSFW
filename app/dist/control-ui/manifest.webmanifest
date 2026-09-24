@@ -1,0 +1,27 @@
+{
+  "name": "Testclaw Control",
+  "short_name": "Testclaw",
+  "description": "Multi-channel AI gateway control panel",
+  "start_url": "./",
+  "display": "standalone",
+  "theme_color": "#0a0a0a",
+  "background_color": "#0a0a0a",
+  "icons": [
+    {
+      "src": "./favicon.svg?v=2026.9.5-2026-09-23T17-40-55.196Z-afcb2da260919efa21680227a9be6efc3727c2be0dbc95bef0691b65fcb0042f",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "./favicon-32.png?v=2026.9.5-2026-09-23T17-40-55.196Z-afcb2da260919efa21680227a9be6efc3727c2be0dbc95bef0691b65fcb0042f",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "./apple-touch-icon.png?v=2026.9.5-2026-09-23T17-40-55.196Z-afcb2da260919efa21680227a9be6efc3727c2be0dbc95bef0691b65fcb0042f",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ]
+}

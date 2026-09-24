@@ -1,0 +1,1 @@
+import{t as e}from"./browser-panel-BIkIr1cs.js";e();

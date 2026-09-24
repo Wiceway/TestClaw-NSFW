@@ -1,0 +1,55 @@
+import { s as resolveAgentModelConfigForRuntime } from "./agent-scope-config-Dm8T0OhW.mjs";
+import { l as toAgentModelListLike } from "./model-input-DKxKaZGG.mjs";
+import { E as selectApplicableRuntimeConfig, s as getRuntimeConfigSnapshot, u as getRuntimeConfigSourceSnapshot } from "./runtime-snapshot-Dti8jFIP.mjs";
+import "./config-DqAgdhnz.mjs";
+//#region src/cron/isolated-agent/run-config.ts
+/** Selects the active reloadable config when it descends from the cron caller's snapshot. */
+function resolveCronActiveRuntimeConfig(cfg) {
+	const runtimeConfig = getRuntimeConfigSnapshot();
+	const runtimeSourceConfig = getRuntimeConfigSourceSnapshot();
+	if (!runtimeConfig || !runtimeSourceConfig) return cfg;
+	return selectApplicableRuntimeConfig({
+		inputConfig: cfg,
+		runtimeConfig,
+		runtimeSourceConfig
+	}) ?? cfg;
+}
+function extractCronAgentDefaultsOverride(agentConfigOverride) {
+	const { model: _agentModelOverride, sandbox: _agentSandboxOverride, memory: _agentMemoryOverride, models: _agentModelsOverride, params: _agentParamsOverride, ...agentOverrideRest } = agentConfigOverride ?? {};
+	return {
+		overrideModel: resolveAgentModelConfigForRuntime(agentConfigOverride),
+		definedOverrides: Object.fromEntries(Object.entries(agentOverrideRest).filter(([, value]) => value !== void 0))
+	};
+}
+/** Derives isolated cron agent defaults from one immutable config snapshot. */
+function resolveCronAgentConfigFromSnapshot(params) {
+	const runtimeConfig = params.config;
+	const { overrideModel, definedOverrides } = extractCronAgentDefaultsOverride(params.agentConfigOverride);
+	const agentDefaults = { ...Object.assign({}, runtimeConfig.agents?.defaults, definedOverrides) };
+	const existingModel = toAgentModelListLike(agentDefaults.model) ?? {};
+	if (typeof overrideModel === "string") agentDefaults.model = {
+		...existingModel,
+		primary: overrideModel
+	};
+	else if (overrideModel) agentDefaults.model = {
+		...existingModel,
+		...overrideModel
+	};
+	return {
+		runtimeConfig,
+		agentDefaults,
+		cfgWithAgentDefaults: {
+			...runtimeConfig,
+			agents: Object.assign({}, runtimeConfig.agents, { defaults: agentDefaults })
+		}
+	};
+}
+/** Selects the active runtime snapshot before deriving isolated cron agent defaults. */
+function resolveCronAgentConfig(params) {
+	return resolveCronAgentConfigFromSnapshot({
+		...params,
+		config: resolveCronActiveRuntimeConfig(params.config)
+	});
+}
+//#endregion
+export { resolveCronAgentConfig as n, resolveCronAgentConfigFromSnapshot as r, resolveCronActiveRuntimeConfig as t };

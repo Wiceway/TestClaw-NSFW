@@ -1,0 +1,48 @@
+{
+  "name": "@testclaw/onepassword",
+  "version": "2026.9.5",
+  "description": "1Password SecretRef resolver and audited agent secrets broker for Testclaw",
+  "type": "module",
+  "dependencies": {
+    "@testclaw/fs-safe": "../../vendor/testclaw-fs-safe"
+  },
+  "devDependencies": {
+    "@testclaw/plugin-sdk": "workspace:*"
+  },
+  "testclaw": {
+    "extensions": [
+      "./index.js"
+    ],
+    "build": {
+      "bundledDist": true,
+      "staticAssets": [
+        {
+          "source": "./onepassword-op-path.js",
+          "output": "onepassword-op-path.js"
+        },
+        {
+          "source": "./onepassword-secret-ref-resolver.js",
+          "output": "onepassword-secret-ref-resolver.js"
+        },
+        {
+          "source": "./onepassword-secret-id.js",
+          "output": "onepassword-secret-id.js"
+        }
+      ],
+      "testclawVersion": "2026.9.5"
+    },
+    "install": {
+      "clawhubSpec": "clawhub:@testclaw/onepassword",
+      "npmSpec": "@testclaw/onepassword",
+      "defaultChoice": "clawhub",
+      "minHostVersion": ">=2026.9.4"
+    },
+    "compat": {
+      "pluginApi": ">=2026.9.5"
+    },
+    "release": {
+      "publishToClawHub": true,
+      "publishToNpm": true
+    }
+  }
+}

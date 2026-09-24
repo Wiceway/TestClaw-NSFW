@@ -1,0 +1,82 @@
+import { t as createDeferredCore } from "./deferred-D0La5CRk.js";
+import { a as throwSqliteLifecycleErrors } from "./sqlite-coordinator-olf_92pI.js";
+import { r as readDatabasePathIdentity } from "./sqlite-worker-identity-DewCyJy9.js";
+import { h as registerAssistantStateDatabaseAsyncResource } from "./testclaw-state-db-cache-BxGqhkwE.js";
+import { d as runSqliteWorkerStoreOperation } from "./sqlite-worker-store-Cg9RiSzs.js";
+import { r as openAssistantStateWorkerCleanupStore } from "./testclaw-state-worker-store-BMVEu7e2.js";
+//#region src/skills/lifecycle/upload-store-install-owner.ts
+/** Installation owns its exact lease until the callback and accepted worker work settle. */
+async function withSkillUploadInstallOwner(context, lease, operation) {
+	const producer = createDeferredCore();
+	let identity;
+	let active = true;
+	let released = false;
+	let cleanup;
+	let store;
+	const cleanupContext = {
+		environment: context.environment,
+		coordinatorRuntime: {
+			...context.coordinatorRuntime,
+			keepAlive: false
+		},
+		existingSchemaPath: context.existingSchemaPath
+	};
+	const assertOwned = () => {
+		if (!active || !identity) throw new Error("Skill upload install cleanup owner has settled");
+	};
+	const close = () => !active ? Promise.resolve() : cleanup ??= (async () => {
+		await producer.promise;
+		if (store) {
+			await store.close();
+			store = void 0;
+		}
+		if (identity && !released) {
+			assertOwned();
+			if ((await readDatabasePathIdentity(context.admission.databasePath)).key !== identity) throw new Error("Skill upload cleanup cannot adopt a replacement shared database");
+			store ??= await openAssistantStateWorkerCleanupStore(context.admission.databasePath, cleanupContext, assertOwned);
+			if (!store) throw new Error("Skill upload cleanup lost its original shared database");
+			const errors = [];
+			try {
+				if (!released) {
+					const input = {
+						...lease,
+						sharedStateIdentity: identity
+					};
+					await runSqliteWorkerStoreOperation(store, (scope) => scope.execute({
+						type: "skillUploads.release",
+						input
+					}), cleanupContext, assertOwned);
+					released = true;
+				}
+			} catch (error) {
+				errors.push(error);
+			}
+			try {
+				await store.close();
+				store = void 0;
+			} catch (error) {
+				errors.push(error);
+			}
+			throwSqliteLifecycleErrors(errors, "Skill upload lease release and worker cleanup failed");
+		}
+		active = false;
+		unregister();
+	})().finally(() => {
+		cleanup = void 0;
+	});
+	const unregister = registerAssistantStateDatabaseAsyncResource({ async close(target) {
+		if (!target || target.key === context.admission.identity.key) await close();
+	} });
+	context.maintenanceScope?.own(producer, "shared-resources", close);
+	try {
+		return await operation(() => {
+			context.admission.assertCurrent();
+			identity = context.admission.identity.key;
+		});
+	} finally {
+		producer.resolve();
+		await close();
+	}
+}
+//#endregion
+export { withSkillUploadInstallOwner };

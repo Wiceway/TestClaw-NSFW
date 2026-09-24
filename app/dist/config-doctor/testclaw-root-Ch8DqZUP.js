@@ -1,0 +1,2 @@
+import { a as rewritePnpmVersionedAssistantEntryPath, i as resolveAssistantPackageRootsSync, n as resolveAssistantPackageRoot, r as resolveAssistantPackageRootSync, t as resolveAssistantInstallationRootSync } from "./testclaw-root-QV2nsx8w.js";
+export { resolveAssistantInstallationRootSync, resolveAssistantPackageRoot, resolveAssistantPackageRootSync, resolveAssistantPackageRootsSync, rewritePnpmVersionedAssistantEntryPath };

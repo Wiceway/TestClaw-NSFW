@@ -1,0 +1,19 @@
+{
+  "name": "@testclaw/file-transfer",
+  "version": "2026.9.5",
+  "description": "Testclaw file transfer plugin (file_fetch, dir_list, dir_fetch, file_write)",
+  "type": "module",
+  "dependencies": {
+    "@testclaw/fs-safe": "../../vendor/testclaw-fs-safe",
+    "minimatch": "10.2.6",
+    "typebox": "1.3.30"
+  },
+  "devDependencies": {
+    "@testclaw/plugin-sdk": "workspace:*"
+  },
+  "testclaw": {
+    "extensions": [
+      "./index.js"
+    ]
+  }
+}

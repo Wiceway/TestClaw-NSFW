@@ -1,0 +1,1 @@
+{"version":3,"file":"id-Ctn3isKt.js","names":[],"sources":["../../../ui/src/i18n/locales/id.ts"],"sourcesContent":["export { default as id } from \"virtual:testclaw-control-ui-locale/id\";\n"],"mappings":""}

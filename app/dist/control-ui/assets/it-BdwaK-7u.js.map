@@ -1,0 +1,1 @@
+{"version":3,"file":"it-BdwaK-7u.js","names":[],"sources":["../../../ui/src/i18n/locales/it.ts"],"sourcesContent":["export { default as it } from \"virtual:testclaw-control-ui-locale/it\";\n"],"mappings":""}

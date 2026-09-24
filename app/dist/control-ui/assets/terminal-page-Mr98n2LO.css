@@ -1,0 +1,1 @@
+.content:has(testclaw-terminal-page){padding:0;overflow:hidden}testclaw-terminal-page{flex-direction:column;flex:1;width:100%;min-width:0;height:100%;min-height:0;display:flex}.content:has(testclaw-terminal-page)>testclaw-router-outlet{flex-direction:column;flex:1;width:100%;min-width:0;height:100%;min-height:0;display:flex}

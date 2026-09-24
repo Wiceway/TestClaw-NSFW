@@ -1,0 +1,1 @@
+{"version":3,"file":"de-D5-G4s2i.js","names":[],"sources":["../../../ui/src/i18n/locales/de.ts"],"sourcesContent":["export { default as de } from \"virtual:testclaw-control-ui-locale/de\";\n"],"mappings":""}

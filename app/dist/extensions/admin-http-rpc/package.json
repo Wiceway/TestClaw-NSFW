@@ -1,0 +1,15 @@
+{
+  "name": "@testclaw/admin-http-rpc",
+  "version": "2026.9.5",
+  "private": true,
+  "description": "Testclaw admin HTTP RPC endpoint",
+  "type": "module",
+  "devDependencies": {
+    "@testclaw/plugin-sdk": "workspace:*"
+  },
+  "testclaw": {
+    "extensions": [
+      "./index.js"
+    ]
+  }
+}

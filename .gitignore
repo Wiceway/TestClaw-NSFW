@@ -1,0 +1,23 @@
+# secrets — NEVER commit
+.env
+*.env
+!*.env.template
+config/
+!templates/
+
+# runtime state (created by the installer)
+state/
+logs/
+data/
+workspace/
+runtime/
+
+# nested node_modules inside app/ ARE the bundle — keep them.
+# ignore only stray installs at the repo root:
+/node_modules
+
+# noise
+*.log
+*.bak
+*.tmp
+.cache/
