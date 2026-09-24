@@ -25,6 +25,8 @@
 - [Требования](#требования)
 - [Установка](#установка)
 - [Запуск](#запуск)
+- [Первый вход](#первый-вход)
+- [Смена API-ключа](#смена-api-ключа)
 - [Удаление](#удаление)
 - [Что где лежит](#что-где-лежит)
 - [Подробнее о безопасности](#подробнее-о-безопасности)
@@ -75,8 +77,9 @@ git clone https://github.com/Wiceway/TestClaw-NSFW %USERPROFILE%\TestClaw && cd 
 2. **спрашивает ваш DeepSeek-ключ** (ввод скрыт);
 3. копирует рантайм в `~/TestClawHome`;
 4. скачивает Node 24.21.0 под вашу платформу;
-5. записывает `.env` и `config/testclaw.json`;
-6. на Linux от root — ставит службу `systemd`.
+5. записывает `.env` и `config/testclaw.json` — **с вашим ключом**;
+6. генерирует **постоянный** gateway-токен для входа в панель;
+7. на Linux от root — ставит службу `systemd`.
 
 ### Варианты установки
 
@@ -104,6 +107,8 @@ git clone https://github.com/Wiceway/TestClaw-NSFW %USERPROFILE%\TestClaw && cd 
 
 ## Запуск
 
+Запустите gateway — это и есть агент:
+
 | Способ | Команда |
 |---|---|
 | Обычная установка, служба (Linux root) | `systemctl start testclaw-gateway` |
@@ -116,7 +121,40 @@ Windows — тот же путь, но `run.cmd`:
 runtime\run.cmd gateway run
 ```
 
-Дашборд после запуска: **http://127.0.0.1:18789/**
+**Окно не закрывайте** — gateway работает, пока окно открыто.
+Остановить: `Ctrl+C`.
+
+---
+
+## Первый вход
+
+Gateway слушает только `127.0.0.1:18789`. Открыть панель управления:
+
+```bash
+./runtime/run.sh dashboard      # Linux / macOS
+.\runtime\run.cmd dashboard     # Windows
+```
+
+Откроется браузер, подключённый автоматически — **токен вводить не нужно**.
+
+> **Если открываете страницу вручную** (`http://127.0.0.1:18789/`) — попросит
+> gateway-токен. Он лежит в `config/testclaw.json`, поле `gateway.auth.token`.
+> Открыть файл: `notepad runtime\config\testclaw.json`.
+> Команда `config get gateway.auth.token` показывает **заглушку** (`__TESTCLAW_-REDACTED__`),
+> а не сам токен — это защита секретов, а не ошибка.
+
+---
+
+## Смена API-ключа
+
+Ключ задан при установке. Заменить на ходу, без переустановки:
+
+```bash
+./runtime/run.sh models auth paste-api-key --provider deepseek
+./runtime/run.sh models auth activate --provider deepseek
+```
+
+Проверить сохранённые ключи: `./runtime/run.sh models auth list`
 
 ---
 
@@ -131,6 +169,22 @@ uninstall.bat         # Windows
 установке. Папку репозитория не трогает — для полного удаления добавьте `--clone`.
 
 **Вручную:** удалите `~/TestClawHome` (или `./runtime` в portable) и папку клона.
+
+**Без хвостов (полное удаление) в режиме `--portable`:**
+
+```powershell
+# Windows — выйдите из папки, иначе «in use»
+cd C:\
+Remove-Item -Recurse -Force D:\Projects\TestFolder
+```
+
+```bash
+# Linux / macOS
+rm -rf ~/TestClaw
+```
+
+В режиме `--portable` всё (включая кэш) лежит **внутри одной папки** —
+удаление папки убирает установку полностью. Службы и записи в реестр не создаются.
 
 ---
 
@@ -151,10 +205,11 @@ uninstall.sh / .bat   обёртки удаления
 
 ```
 bin/              рантайм + Node для вашей платформы
-config/           testclaw.json  — тут ключ
+config/           testclaw.json  — gateway-токен и ключ провайдера
 .env              переменные окружения — тут ключ
 workspace/        рабочее пространство агента
 state/  logs/     сессии, логи
+cache/            кэш (только в --portable — всё внутри папки)
 run.sh / run.cmd  лаунчер
 ```
 
