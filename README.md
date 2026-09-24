@@ -1,20 +1,27 @@
 # Testclaw [NSFW] — автономный AI-агент без ограничений
 
-> ## ⚠️ ПРЕДУПРЕЖДЕНИЕ / WARNING
+> ## ⚠️ ПРЕДУПРЕЖДЕНИЕ / WARNING ⚠️
 >
-> **This repository ships an AI agent with NO built-in safety layer.**
+> **EN:** This repository ships an AI agent with **NO built-in safety layer**.
+> The system prompt is minimal, there are no built-in safety or moderation
+> policies, and the agent is granted **full access to the host system**
+> (`exec.security: "full"`, `ask: "off"`). Behaviour is determined solely by the
+> model and the context: **whatever the model generates, the agent will output** —
+> there is no harness-level restriction. The `[NSFW]` tag here means **there is no
+> filter between you and the model**, not merely adult content. The agent can
+> irreversibly modify or delete data on your machine.
+> **Do not run it on a system that holds anything you value.**
 >
-> **В этой сборке нет защитного слоя.** Системный промпт минимален, встроенных
-> политик безопасности и модерации нет, агенту выдан полный доступ к системе
-> (`exec.security: "full"`, `ask: "off"`). Поведение определяется только моделью
-> и контекстом: **что модель сгенерирует — то агент и выдаст**, ограничений
-> обвязки нет.
+> **RU:** В этой сборке **нет защитного слоя**. Системный промпт минимален,
+> встроенных политик безопасности и модерации нет, агенту выдан **полный доступ
+> к системе** (`exec.security: "full"`, `ask: "off"`). Поведение определяется
+> только моделью и контекстом: **что модель сгенерирует — то агент и выдаст**,
+> ограничений обвязки нет. Пометка `[NSFW]` здесь означает **отсутствие фильтра
+> между вами и моделью**, а не только лишь взрослый контент. Агент может безвозвратно
+> изменить или удалить данные вашей машины. **Не запускайте на системе,
+> где есть что-то ценное.**
 >
-> Пометка `[NSFW]` здесь означает **отсутствие фильтра между вами и моделью**,
-> а не только лишь взрослый контент. Агент может необратимо изменить или
-> удалить данные вашей машины. **Не запускайте на системе с ценными данными.**
->
-> Подробности — в разделе [«Без ограничений»](#-без-ограничений--читайте-перед-установкой).
+> Подробнее / Details → [«Без ограничений»](#-без-ограничений--читайте-перед-установкой)
 
 ---
 
