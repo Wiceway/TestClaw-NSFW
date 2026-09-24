@@ -191,6 +191,8 @@ def main() -> None:
 
     # --- config ------------------------------------------------------------
     say("Writing .env and config/testclaw.json")
+    import secrets as _secrets
+    gateway_token = _secrets.token_hex(24)
     env_text = render(HERE / "templates" / "env.template", home, key)
     if args.portable:
         # keep the SQLite snapshot-staging cache inside the portable folder
@@ -202,7 +204,10 @@ def main() -> None:
     except OSError:
         pass
     (home / "config" / "testclaw.json").write_text(
-        render(HERE / "templates" / "testclaw.json.template", home, key), encoding="utf-8"
+        render(HERE / "templates" / "testclaw.json.template", home, key).replace(
+            "__GATEWAY_TOKEN__", gateway_token
+        ),
+        encoding="utf-8",
     )
 
     for name in ("AGENTS.md", "SOUL.md", "IDENTITY.md", "USER.md", "BOOTSTRAP.md", "MEMORY.md"):
