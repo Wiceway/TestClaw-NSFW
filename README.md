@@ -1,112 +1,149 @@
-# Testclaw — self-contained AI agent
+# Testclaw — автономный AI-агент
 
-Autonomous AI assistant gateway with shell, files, web, and browser tools.
+**Testclaw** — это шлюз (gateway), внутри которого живёт автономный AI-агент.
+Он умеет работать в терминале, читать и редактировать файлы, искать в интернете,
+управлять браузером, ставить напоминания и выполнять рутинные задачи — то есть
+это не «чат с моделью», а полноценный агент с доступом к системе.
 
-The runtime (including every `node_modules` dependency) ships inside this
-repository. You do **not** need `npm` or `pnpm`. The installer downloads the
-Node.js engine once, for your platform. The only requirement is **Python 3.8+**.
+Связь с моделью идёт через **DeepSeek API**, поэтому для работы нужен ваш
+собственный API-ключ DeepSeek.
 
-Works on **Linux**, **macOS**, and **Windows**.
+---
 
-## Requirements
+## Что это даёт
 
-- Python 3.8+ (https://www.python.org/downloads/)
-- A **DeepSeek API key** — https://platform.deepseek.com/api_keys
+- **Терминал и файлы** — агент выполняет shell-команды, читает и пишет файлы.
+- **Интернет** — веб-поиск и загрузка страниц.
+- **Браузер** — управление браузером (навигация, скриншоты, клики).
+- **Автоматизации** — напоминания, отложенные задачи, повторяющиеся проверки.
+- **Веб-дашборд** — управление агентом через Control UI в браузере.
+- **Работа из коробки** — весь рантайм и все зависимости уже внутри.
 
-## Install
+---
+
+## Требования
+
+| Компонент | Версия | Нужно ставить вручную? |
+|---|---|---|
+| **Python** | 3.8+ | ✅ да (единственная внешняя зависимость) |
+| **Node.js** | 24.21.0 | ❌ нет — установщик скачает сам |
+| **npm / pnpm** | — | ❌ не нужны |
+| **DeepSeek API-ключ** | — | ✅ да (получить: https://platform.deepseek.com/api_keys) |
+| **ОС** | Linux / macOS / Windows (x64 или arm64) | — |
+| **Интернет** | при установке (скачать Node) | — |
+
+> **Важно:** Node.js **не нужно** устанавливать заранее. Установщик сам
+> определит вашу платформу и скачает нужную сборку Node с nodejs.org.
+> Внешняя зависимость — только Python.
+
+---
+
+## Установка
 
 ### Linux / macOS
 
 ```bash
-git clone <this-repo> testclaw
-cd testclaw
+git clone https://github.com/Wiceway/TestClaw
+cd TestClaw
 ./install.sh
 ```
-
-(or `python3 setup.py` directly)
 
 ### Windows
 
 ```bat
-git clone <this-repo> testclaw
-cd testclaw
+git clone https://github.com/Wiceway/TestClaw
+cd TestClaw
 install.bat
 ```
 
-(or `python setup.py` directly)
+Оба варианта запускают один и тот же установщик (`setup.py`). Можно вызвать
+напрямую: `python3 setup.py` (Linux/macOS) или `python setup.py` (Windows).
 
-Both entry points run the same installer. It will:
+### Что делает установщик
 
-1. detect your platform and architecture (Linux/macOS/Windows, x64/arm64)
-2. **ask you to paste your DeepSeek API key** — hidden input, never echoed
-3. copy the runtime to `~/TestClawHome` (override with `--home`)
-4. download Node.js 24.21.0 for your platform from nodejs.org
-5. write `.env` and `config/testclaw.json` with your key
-6. on Linux as root, register and start a `systemd` service
+1. Определяет вашу ОС и архитектуру (Linux/macOS/Windows, x64/arm64).
+2. **Спрашивает API-ключ DeepSeek** — ввод скрыт, ключ не отображается на экране.
+3. Копирует рантайм в `~/TestClawHome` (каталог меняется флагом `--home`).
+4. Скачивает Node.js 24.21.0 под вашу платформу.
+5. Записывает `.env` и `config/testclaw.json` с вашим ключом.
+6. На Linux запущенный от root — ставит и запускает службу `systemd`.
 
-When it finishes, the dashboard is at:
+По завершении дашборд будет доступен по адресу:
 
 ```
 http://127.0.0.1:18789/
 ```
 
-### Non-interactive / custom root
+### Неинтерактивная установка / свой каталог
 
 ```bash
 python3 setup.py --home /opt/testclaw --key "$DEEPSEEK_API_KEY"
 ```
 
-## Repository layout
+Флаг `--no-service` отключает регистрацию системной службы.
+
+---
+
+## Структура репозитория
 
 ```
-app/                  bundled runtime (dist + node_modules + launcher .mjs)
-templates/            config templates (key placeholder only)
-setup.py              cross-platform installer
-install.sh            Linux/macOS wrapper
-install.bat           Windows wrapper
+app/                  сам рантайм (dist + node_modules + лаунчер .mjs)
+templates/            шаблоны конфигов (только плейсхолдер ключа)
+setup.py              кроссплатформенный установщик
+install.sh            обёртка для Linux/macOS
+install.bat           обёртка для Windows
 ```
 
-After install:
+## Что появляется после установки
 
 ```
 $TESTCLAW_HOME/
-├── bin/              runtime + the platform's Node (node-bin / node.exe)
-├── config/           testclaw.json   (contains your key — keep private)
-├── workspace/        agent workspace (AGENTS.md, SOUL.md, …)
-├── state/            sessions, databases
-├── logs/             gateway + service logs
-├── run.sh / run.cmd  launcher
-└── .env              environment (contains your key — chmod 600)
+├── bin/              рантайм + Node для вашей платформы (node-bin / node.exe)
+├── config/           testclaw.json  (содержит ключ — держите в тайне)
+├── workspace/        рабочее пространство агента (AGENTS.md, SOUL.md, …)
+├── state/            сессии, базы данных
+├── logs/             логи gateway и службы
+├── run.sh / run.cmd  лаунчер
+└── .env              переменные окружения (содержит ключ — chmod 600)
 ```
 
-## Managing the service
+---
 
-Linux (installed as root):
+## Управление
+
+### Служба (Linux, установка от root)
 
 ```bash
-systemctl status  testclaw-gateway
-systemctl restart testclaw-gateway
-journalctl -u testclaw-gateway -f
+systemctl status  testclaw-gateway   # состояние
+systemctl restart testclaw-gateway   # перезапуск
+systemctl stop    testclaw-gateway   # остановка
+journalctl -u testclaw-gateway -f    # логи в реальном времени
 ```
 
-Anywhere, foreground:
+### Запуск вручную (любая ОС)
 
 ```bash
-# Linux/macOS
+# Linux / macOS
 ~/TestClawHome/run.sh gateway run
+
 # Windows
 %USERPROFILE%\TestClawHome\run.cmd gateway run
 ```
 
-## Security notes
+---
 
-- The dashboard binds to `127.0.0.1` by default. Put it behind a reverse proxy
-  (nginx/Caddy) with TLS before exposing it to the internet.
-- `DEEPSEEK_API_KEY` is stored in `$TESTCLAW_HOME/.env` (mode 600) and in
-  `config/testclaw.json`. Never commit either file.
-- The template sets `exec.security: "full"` — unrestricted shell for the agent.
-  Tighten it in `config/testclaw.json` if that is not what you want.
+## Безопасность
 
-## License
+- Дашборд по умолчанию слушает только `127.0.0.1`. Перед публикацией в интернет
+  поставьте его за обратный прокси (nginx/Caddy) с TLS.
+- Ключ `DEEPSEEK_API_KEY` хранится в `$TESTCLAW_HOME/.env` (права 600) и в
+  `config/testclaw.json`. Никогда не коммитьте эти файлы.
+- В шаблоне стоит `exec.security: "full"` — **неограниченный доступ агента к
+  оболочке**. Если это не то, что нужно, ужесточите политику в
+  `config/testclaw.json`.
+
+---
+
+## Лицензия
 
 MIT
