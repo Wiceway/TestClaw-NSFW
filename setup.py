@@ -148,10 +148,20 @@ def main() -> None:
     ap.add_argument("--home", default=None, help="Install root (default: ~/TestClawHome)")
     ap.add_argument("--key", default=None, help="DeepSeek API key (skips the prompt)")
     ap.add_argument("--no-service", action="store_true", help="Do not register a system service")
+    ap.add_argument("--portable", action="store_true",
+                    help="Install everything into ./runtime next to this repo "
+                         "(one folder, delete it to remove)")
     args = ap.parse_args()
 
     os_name = "windows" if os.name == "nt" else platform.system().lower()
-    home = Path(args.home).expanduser().resolve() if args.home else (Path.home() / "TestClawHome")
+    if args.portable and args.home:
+        die("--portable and --home are mutually exclusive")
+    if args.portable:
+        home = HERE / "runtime"
+    elif args.home:
+        home = Path(args.home).expanduser().resolve()
+    else:
+        home = Path.home() / "TestClawHome"
 
     print(BANNER)
     say(f"Platform: {os_name} {platform.machine()}")

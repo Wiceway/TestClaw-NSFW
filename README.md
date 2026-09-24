@@ -157,6 +157,62 @@ python3 setup.py --home /opt/testclaw --key "$DEEPSEEK_API_KEY"
 
 Флаг `--no-service` отключает регистрацию системной службы.
 
+### Portable-режим (всё в одной папке)
+
+Если не хотите ничего разбрасывать по системе — поставьте всё внутрь репозитория:
+
+```bash
+./install.sh --portable        # Linux / macOS
+install.bat --portable         # Windows
+```
+
+Всё ляжет в `./runtime/` рядом с клоном. Запуск:
+
+```bash
+# Linux / macOS
+./runtime/run.sh gateway run
+# Windows
+runtime\run.cmd gateway run
+```
+
+**Удаление — просто удалите папку клона.** Или запустите:
+
+```bash
+./uninstall.sh --clone         # Linux / macOS
+uninstall.bat --clone          # Windows
+```
+
+---
+
+## Удаление
+
+По умолчанию установщик кладёт рантайм в `~/TestClawHome`. Деинсталлятор
+убирает всё, что создал (и снимает systemd-службу на Linux):
+
+```bash
+./uninstall.sh                 # Linux / macOS
+uninstall.bat                  # Windows
+```
+
+Он **не трогает** папку клона, если не передан `--clone`.
+
+### Удаление вручную
+
+| Где | Что удалить |
+|---|---|
+| Windows | `%USERPROFILE%\TestClawHome` и папку клона |
+| Linux / macOS | `~/TestClawHome` и папку клона |
+
+На Linux, если ставили от root, сначала:
+
+```bash
+systemctl stop testclaw-gateway && systemctl disable testclaw-gateway
+rm /etc/systemd/system/testclaw-gateway.service && systemctl daemon-reload
+```
+
+**Portable-режим** (`--portable`) не создаёт ничего вне папки клона —
+достаточно удалить саму папку.
+
 ---
 
 ## Структура репозитория
@@ -165,8 +221,9 @@ python3 setup.py --home /opt/testclaw --key "$DEEPSEEK_API_KEY"
 app/                  сам рантайм (dist + node_modules + лаунчер .mjs)
 templates/            шаблоны конфигов (только плейсхолдер ключа)
 setup.py              кроссплатформенный установщик
-install.sh            обёртка для Linux/macOS
-install.bat           обёртка для Windows
+uninstall.py          кроссплатформенный деинсталлятор
+install.sh / .bat     обёртки установки (Linux/macOS и Windows)
+uninstall.sh / .bat   обёртки удаления
 ```
 
 ## Что появляется после установки
