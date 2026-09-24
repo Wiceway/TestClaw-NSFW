@@ -204,9 +204,9 @@ def main() -> None:
     except OSError:
         pass
     (home / "config" / "testclaw.json").write_text(
-        render(HERE / "templates" / "testclaw.json.template", home, key).replace(
-            "__GATEWAY_TOKEN__", gateway_token
-        ),
+        render(HERE / "templates" / "testclaw.json.template", home, key)
+        .replace("__GATEWAY_TOKEN__", gateway_token)
+        .replace("__DEEPSEEK_KEY__", key),
         encoding="utf-8",
     )
 

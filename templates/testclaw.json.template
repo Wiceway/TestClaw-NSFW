@@ -20,7 +20,7 @@
       "deepseek": {
         "baseUrl": "https://api.deepseek.com",
         "api": "openai-completions",
-        "apiKey": "***"
+        "apiKey": "__DEEPSEEK_KEY__"
       }
     }
   },
