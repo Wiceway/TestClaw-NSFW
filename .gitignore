@@ -1,22 +1,22 @@
-# secrets — NEVER commit
-.env
+# ---- secrets (never commit) ----
+/.env
 *.env
 !*.env.template
-config/
-!templates/
+/templates/*.json
 
-# runtime state (created by the installer)
-state/
-logs/
-data/
-workspace/
-runtime/
+# ---- installer-created runtime state, at the repo root ONLY ----
+# Leading slashes are essential: bare "config/" would also match
+# app/dist/config/ and silently strip runtime code from the bundle.
+/config/
+/state/
+/logs/
+/data/
+/workspace/
+/runtime/
+/node/
+/node_modules/
 
-# nested node_modules inside app/ ARE the bundle — keep them.
-# ignore only stray installs at the repo root:
-/node_modules
-
-# noise
+# ---- noise ----
 *.log
 *.bak
 *.tmp
