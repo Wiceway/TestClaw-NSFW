@@ -173,7 +173,10 @@ def main() -> None:
     key = ask_key(args.key)
 
     # --- layout ------------------------------------------------------------
-    for sub in ("config", "workspace", "logs", "data", "state"):
+    subs = ["config", "workspace", "logs", "data", "state"]
+    if args.portable:
+        subs.append("cache")
+    for sub in subs:
         (home / sub).mkdir(parents=True, exist_ok=True)
 
     say("Copying runtime (this can take a minute)…")
@@ -188,7 +191,12 @@ def main() -> None:
 
     # --- config ------------------------------------------------------------
     say("Writing .env and config/testclaw.json")
-    (home / ".env").write_text(render(HERE / "templates" / "env.template", home, key), encoding="utf-8")
+    env_text = render(HERE / "templates" / "env.template", home, key)
+    if args.portable:
+        # keep the SQLite snapshot-staging cache inside the portable folder
+        # instead of %LOCALAPPDATA%\testclaw (or ~/.cache/testclaw)
+        env_text += f"\nXDG_CACHE_HOME={home / 'cache'}\n"
+    (home / ".env").write_text(env_text, encoding="utf-8")
     try:
         os.chmod(home / ".env", 0o600)
     except OSError:
